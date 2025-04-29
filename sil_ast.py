@@ -58,7 +58,7 @@ class If:
         self.else_body = else_body
 
     def __repr__(self):
-        return f"If(condition={self.condition}, then={self.then_body}, else={self.else_body})"
+        return f"If(condition={self.condition}, then_body={self.then_body}, else_body={self.else_body})"
 
 class Loop:
     def __init__(self, body):
@@ -105,3 +105,10 @@ class Ident:
 
     def __repr__(self):
         return f"Ident(name={self.name})"
+
+class CpuBlock:
+    def __init__(self, code):
+        self.code = code
+
+    def __repr__(self):
+        return f"CpuBlock(code={self.code})"

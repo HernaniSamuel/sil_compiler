@@ -23,6 +23,11 @@ class Parser:
         if tok != expected:
             raise Exception(f"Esperado '{expected}', mas encontrado '{tok}'")
 
+    def normalize_type(self, typ):
+        if typ == "int":
+            return "uint"
+        return typ
+
     def parse(self):
         statements = []
         while self.peek() is not None:
@@ -42,29 +47,75 @@ class Parser:
             return self.parse_kernel()
         elif tok == "return":
             return self.parse_return()
+        elif tok == "if":
+            return self.parse_if()
+        elif tok == "@cpu":
+            return self.parse_cpu_block()
         else:
-            # Nova regra: parse de atribuição (assignment)
             return self.parse_assign()
+
+    def parse_cpu_block(self):
+        self.expect("@cpu")
+        raw_code = self.next()  # O próximo token é TODO o código do bloco
+        return sil_ast.CpuBlock(raw_code)
+
+    def parse_if(self):
+        self.expect("if")
+        self.expect("(")
+        condition = self.parse_expression()
+        self.expect(")")
+        self.expect("{")
+        then_body = []
+        while self.peek() != "}":
+            then_body.append(self.parse_statement())
+        self.expect("}")
+
+        else_body = None
+        if self.peek() == "else":
+            self.expect("else")
+            self.expect("{")
+            else_body = []
+            while self.peek() != "}":
+                else_body.append(self.parse_statement())
+            self.expect("}")
+
+        return sil_ast.If(condition, then_body, else_body)
 
     def parse_var_decl(self):
         self.expect("var")
         name = self.next()
         self.expect(":")
-        var_type = self.next()
+        declared_type = self.normalize_type(self.next())
         self.expect("=")
         value = self.parse_expression()
         self.expect(";")
-        return sil_ast.VarDecl(name, var_type, value)
+
+        # Auto-corrigir tipo se o valor for float
+        if isinstance(value, sil_ast.Literal):
+            if isinstance(value.value, float) and declared_type != "float":
+                declared_type = "float"
+            if isinstance(value.value, int) and declared_type not in ("int", "uint"):
+                declared_type = "uint"
+
+        return sil_ast.VarDecl(name, declared_type, value)
 
     def parse_const_decl(self):
         self.expect("const")
         name = self.next()
         self.expect(":")
-        const_type = self.next()
+        declared_type = self.normalize_type(self.next())
         self.expect("=")
         value = self.parse_expression()
         self.expect(";")
-        return sil_ast.ConstDecl(name, const_type, value)
+
+        # Auto-corrigir tipo se o valor for float
+        if isinstance(value, sil_ast.Literal):
+            if isinstance(value.value, float) and declared_type != "float":
+                declared_type = "float"
+            if isinstance(value.value, int) and declared_type not in ("int", "uint"):
+                declared_type = "uint"
+
+        return sil_ast.ConstDecl(name, declared_type, value)
 
     def parse_kernel(self):
         self.expect("kernel")
@@ -77,17 +128,17 @@ class Parser:
         while self.peek() != "}":
             body.append(self.parse_statement())
         self.expect("}")
-        return sil_ast.Kernel(name, params, "void", body)  # Kernel é sempre void, automático
+        return sil_ast.Kernel(name, params, "void", body)
 
     def parse_params(self):
         params = []
         while self.peek() != ")":
             pname = self.next()
             self.expect(":")
-            ptype = self.next()
+            ptype = self.normalize_type(self.next())
             params.append(sil_ast.Param(pname, ptype))
             if self.peek() == ",":
-                self.next()  # consumir a vírgula
+                self.next()
         return params
 
     def parse_return(self):
@@ -100,16 +151,14 @@ class Parser:
 
     def parse_expression(self):
         left = self.parse_primary()
-
         while True:
-            op = self.peek()
-            if op in ('+', '-', '*', '/'):
-                self.next()  # consome o operador
+            tok = self.peek()
+            if tok in ('+', '-', '*', '/', '//', '==', '!=', '<', '>', '<=', '>=', '&&', '||'):
+                op = self.next()
                 right = self.parse_primary()
                 left = sil_ast.BinaryOp(left, op, right)
             else:
                 break
-
         return left
 
     def parse_primary(self):
