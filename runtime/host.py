@@ -25,7 +25,7 @@ class HostRuntime:
 
     def run_kernel(self, kernel_name, global_size, inputs):
         kernel = getattr(self.program, kernel_name)
-        args = [inputs[name] for name in sorted(inputs.keys())]
+        args = list(inputs.values())
         kernel.set_args(*args)
         cl.enqueue_nd_range_kernel(self.queue, kernel, (global_size,), None)
 

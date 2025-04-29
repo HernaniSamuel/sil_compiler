@@ -2,6 +2,7 @@
 
 import sil_ast
 
+
 class Generator:
     def __init__(self):
         self.next_id = 1
@@ -29,24 +30,27 @@ class Generator:
         annotations = []
         types = []
 
-        int_type = self.new_id()
         void_type = self.new_id()
         bool_type = self.new_id()
         uint_type = self.new_id()
         float_type = self.new_id()
 
-        self.type_ids['int'] = uint_type
         self.type_ids['void'] = void_type
         self.type_ids['bool'] = bool_type
         self.type_ids['uint'] = uint_type
+        self.type_ids['int'] = uint_type  # int é alias para uint (não duplica tipo)
         self.type_ids['float'] = float_type
 
         types.append(f"{void_type} = OpTypeVoid")
         types.append(f"{bool_type} = OpTypeBool")
-        types.append(f"{uint_type} = OpTypeInt 32 0")
+        types.append(f"{uint_type} = OpTypeInt 32 0")  # Só UM unsigned int, para ambos int e uint
         types.append(f"{float_type} = OpTypeFloat 32")
 
         # Ponteiros CrossWorkgroup
+        ptr_cross_int = self.new_id()
+        self.type_ids['ptr_cross_int'] = ptr_cross_int
+        types.append(f"{ptr_cross_int} = OpTypePointer CrossWorkgroup {self.type_ids['int']}")
+
         ptr_cross_uint = self.new_id()
         self.type_ids['ptr_cross_uint'] = ptr_cross_uint
         types.append(f"{ptr_cross_uint} = OpTypePointer CrossWorkgroup {self.type_ids['uint']}")
@@ -59,7 +63,17 @@ class Generator:
         self.type_ids['ptr_cross_bool'] = ptr_cross_bool
         types.append(f"{ptr_cross_bool} = OpTypePointer CrossWorkgroup {self.type_ids['bool']}")
 
+        # Aliases para tipos de ponteiro usados explicitamente
+        self.type_ids['ptr_int'] = self.type_ids['ptr_cross_int']
+        self.type_ids['ptr_uint'] = self.type_ids['ptr_cross_uint']
+        self.type_ids['ptr_float'] = self.type_ids['ptr_cross_float']
+        self.type_ids['ptr_bool'] = self.type_ids['ptr_cross_bool']
+
         # Ponteiros Function
+        ptr_func_int = self.new_id()
+        self.type_ids['ptr_func_int'] = ptr_func_int
+        types.append(f"{ptr_func_int} = OpTypePointer Function {self.type_ids['int']}")
+
         ptr_func_uint = self.new_id()
         self.type_ids['ptr_func_uint'] = ptr_func_uint
         types.append(f"{ptr_func_uint} = OpTypePointer Function {self.type_ids['uint']}")
@@ -78,7 +92,13 @@ class Generator:
                 self.kernel_func_ids[node.name] = fid
 
                 # Agora a lista de tipos para parâmetros está correta
-                param_types = [self.type_ids['ptr_cross_' + p.param_type] for p in node.params]
+                param_types = []
+                for p in node.params:
+                    if p.param_type.startswith("ptr_"):
+                        param_types.append(self.type_ids[p.param_type])
+                    else:
+                        param_types.append(self.type_ids['ptr_cross_' + p.param_type])
+
                 fn_type = self.new_id()
                 self.func_type_ids[node.name] = fn_type
 
@@ -133,9 +153,14 @@ class Generator:
 
         for p in node.params:
             # Corrigido: usar o ponteiro certo de acordo com o tipo do parâmetro
-            ptr_type = self.type_ids.get('ptr_cross_' + p.param_type)
+            if p.param_type.startswith("ptr_"):
+                ptr_type = self.type_ids[p.param_type]
+            else:
+                ptr_type = self.type_ids['ptr_cross_' + p.param_type]
+
             if not ptr_type:
-                raise Exception(f"No CrossWorkgroup pointer type for {p.param_type}")
+                raise Exception(f"Unknown pointer type for {p.param_type}")
+
             pid = self.new_id()
             result.append(f"{pid} = OpFunctionParameter {ptr_type}")
             self.param_ids[p.name] = (pid, p.param_type)
@@ -180,21 +205,41 @@ class Generator:
         self.var_ids[stmt.name] = (var_id, stmt.var_type)
         return result
 
-
     def generate_stmt(self, stmt):
         result = []
 
         if isinstance(stmt, sil_ast.Return):
             result.append("OpReturn")
+
         elif isinstance(stmt, sil_ast.Assign):
-            target_ptr, _ = self.var_ids.get(stmt.name) or self.param_ids.get(stmt.name)
-            if target_ptr is None:
+            target_ptr_info = self.var_ids.get(stmt.name) or self.param_ids.get(stmt.name)
+            if target_ptr_info is None:
                 raise Exception(f"Variable or parameter not found: {stmt.name}")
-            value_code, value_id, _ = self.generate_expr(stmt.value)
+
+            target_ptr, target_type = target_ptr_info
+            value_code, value_id, value_type = self.generate_expr(stmt.value)
             result.extend(value_code)
-            result.append(f"OpStore {target_ptr} {value_id}")
+
+            # CONVERSÃO bool → uint (se necessário)
+            if value_type == 'bool' and (target_type == 'ptr_uint' or target_type == 'uint'):
+                conv_id = self.new_id()
+                result.append(
+                    f"{conv_id} = OpSelect {self.type_ids['uint']} {value_id} {self.get_constant(1)} {self.get_constant(0)}")
+                value_id = conv_id
+                value_type = 'uint'
+
+            # Handle storing to pointer parameters
+            if target_type.startswith('ptr_'):
+                if stmt.name in self.param_ids:
+                    result.append(f"OpStore {target_ptr} {value_id}")
+                else:
+                    result.append(f"OpStore {target_ptr} {value_id}")
+            else:
+                result.append(f"OpStore {target_ptr} {value_id}")
+
         elif isinstance(stmt, sil_ast.If):
             result.extend(self.generate_if(stmt))
+
         else:
             raise Exception(f"Unsupported statement type: {type(stmt)}")
 
@@ -206,21 +251,61 @@ class Generator:
         if isinstance(expr, sil_ast.Literal):
             const_id = self.get_constant(expr.value)
             if isinstance(expr.value, int):
-                return result, const_id, 'int'
+                return result, const_id, 'uint'  # Alterado para 'uint' ao invés de 'int'
             elif isinstance(expr.value, float):
                 return result, const_id, 'float'
+
+        elif isinstance(expr, sil_ast.UnaryOp):
+            code, operand_id, operand_type = self.generate_expr(expr.expr)
+
+            if expr.op == '!':
+                if operand_type == 'bool':
+                    # Convert bool → uint
+                    conv_id = self.new_id()
+                    code.append(
+                        f"{conv_id} = OpSelect {self.type_ids['uint']} {operand_id} {self.get_constant(1)} {self.get_constant(0)}")
+                    operand_id = conv_id
+                    operand_type = 'uint'
+
+                # Agora faz (1 - x)
+                one_const = self.get_constant(1)
+                sub_id = self.new_id()
+                code.append(f"{sub_id} = OpISub {self.type_ids['uint']} {one_const} {operand_id}")
+
+                # Converte de volta para bool
+                result_id = self.new_id()
+                code.append(f"{result_id} = OpINotEqual {self.type_ids['bool']} {sub_id} {self.get_constant(0)}")
+
+                return code, result_id, 'bool'
+
+            elif expr.op == '-':
+                result_id = self.new_id()
+                code.append(f"{result_id} = OpSNegate {self.type_ids[operand_type]} {operand_id}")
+                return code, result_id, operand_type
+            else:
+                raise Exception(f"Unsupported unary operator: {expr.op}")
 
         elif isinstance(expr, sil_ast.Ident):
             if expr.name in self.var_ids:
                 var_ptr, var_type = self.var_ids[expr.name]
-                result_id = self.new_id()
-                result.append(f"{result_id} = OpLoad {self.type_ids[var_type]} {var_ptr}")
-                return result, result_id, var_type
+                if var_type.startswith('ptr_'):
+                    # Se já é ponteiro (ex: ptr_uint), não precisa OpLoad
+                    return result, var_ptr, var_type
+                else:
+                    result_id = self.new_id()
+                    result.append(f"{result_id} = OpLoad {self.type_ids[var_type]} {var_ptr}")
+                    return result, result_id, var_type
+
             elif expr.name in self.param_ids:
                 param_ptr, param_type = self.param_ids[expr.name]
-                result_id = self.new_id()
-                result.append(f"{result_id} = OpLoad {self.type_ids[param_type]} {param_ptr}")
-                return result, result_id, param_type
+                if param_type.startswith('ptr_'):
+                    # Se já é ponteiro (ex: ptr_uint), não faz OpLoad
+                    return result, param_ptr, param_type
+                else:
+                    result_id = self.new_id()
+                    result.append(f"{result_id} = OpLoad {self.type_ids[param_type]} {param_ptr}")
+                    return result, result_id, param_type
+
             else:
                 raise Exception(f"Unknown identifier: {expr.name}")
 
@@ -230,16 +315,29 @@ class Generator:
             result.extend(left_code)
             result.extend(right_code)
 
-            # 🚨 Verificação de tipo antes de gerar a operação!
+            # Se operação é && ou ||, converter uint para bool se necessário
+            if expr.op in ['&&', '||']:
+                if left_type == 'uint':
+                    conv_id = self.new_id()
+                    result.append(f"{conv_id} = OpINotEqual {self.type_ids['bool']} {left_id} {self.get_constant(0)}")
+                    left_id = conv_id
+                    left_type = 'bool'
+
+                if right_type == 'uint':
+                    conv_id = self.new_id()
+                    result.append(f"{conv_id} = OpINotEqual {self.type_ids['bool']} {right_id} {self.get_constant(0)}")
+                    right_id = conv_id
+                    right_type = 'bool'
+
             if left_type != right_type:
                 raise Exception(f"Type mismatch in binary operation: {left_type} vs {right_type}")
 
             result_id = self.new_id()
 
             op_map_int = {
-                '+': 'OpIAdd', '-': 'OpISub', '*': 'OpIMul', '/': 'OpSDiv', '//': 'OpSDiv',
-                '==': 'OpIEqual', '!=': 'OpINotEqual', '<': 'OpSLessThan', '>': 'OpSGreaterThan',
-                '<=': 'OpSLessThanEqual', '>=': 'OpSGreaterThanEqual', '&&': 'OpLogicalAnd', '||': 'OpLogicalOr'
+                '+': 'OpIAdd', '-': 'OpISub', '*': 'OpIMul', '/': 'OpSDiv', '//': 'OpUDiv', '%': 'OpUMod',
+                '==': 'OpIEqual', '!=': 'OpINotEqual', '<': 'OpULessThan', '>': 'OpUGreaterThan',
+                '<=': 'OpULessThanEqual', '>=': 'OpUGreaterThanEqual', '&&': 'OpLogicalAnd', '||': 'OpLogicalOr'
             }
 
             op_map_float = {
@@ -259,8 +357,9 @@ class Generator:
                 instr = op_map_int.get(expr.op)
                 if not instr:
                     raise Exception(f"Unsupported int binary operator: {expr.op}")
+                # Corrigido: usar o tipo correto (uint ao invés de int)
                 result_type = self.type_ids['bool'] if expr.op in comparison_ops or expr.op in ['&&', '||'] else \
-                self.type_ids['int']
+                    self.type_ids['uint']
 
             result.append(f"{result_id} = {instr} {result_type} {left_id} {right_id}")
             return result, result_id, 'bool' if expr.op in comparison_ops else left_type
@@ -298,3 +397,9 @@ class Generator:
         result.append(f"{merge_label} = OpLabel")
 
         return result
+
+    def get_constant_false(self):
+        if "false" not in self.constants:
+            const_id = self.new_id()
+            self.constants["false"] = f"{const_id} = OpConstantFalse {self.type_ids['bool']}"
+        return self.constants["false"].split('=')[0].strip()

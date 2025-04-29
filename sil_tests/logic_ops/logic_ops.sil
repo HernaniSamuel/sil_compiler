@@ -1,0 +1,59 @@
+kernel truth_table_logic(a: uint, b: uint,
+                         out_and: ptr_uint, out_or: ptr_uint,
+                         out_not_a: ptr_uint, out_not_b: ptr_uint,
+                         out_complex: ptr_uint) {
+    /* Usando (x != 0) para interpretar como bool */
+    var and_res: uint = (a != 0) && (b != 0);
+    var or_res:  uint = (a != 0) || (b != 0);
+    var not_a:   uint = !(a != 0);
+    var not_b:   uint = !(b != 0);
+
+    /* Expressão lógica composta para validar precedência e mistura */
+    var complex: uint = ((a != 0) && !(b == 0)) || ((a == 0) && !(b != 0));
+
+    out_and = and_res;
+    out_or = or_res;
+    out_not_a = not_a;
+    out_not_b = not_b;
+    out_complex = complex;
+}
+
+@cpu
+import numpy as np
+
+def expected_outputs(a, b):
+    a_bool = int(a != 0)
+    b_bool = int(b != 0)
+
+    and_res = a_bool & b_bool
+    or_res = a_bool | b_bool
+    not_a = int(not a_bool)
+    not_b = int(not b_bool)
+    complex_expr = ((a_bool and not (b == 0)) or ((a == 0) and not (b_bool)))
+    return and_res, or_res, not_a, not_b, int(complex_expr)
+
+# Testa as 4 combinações possíveis: (0,0), (0,1), (1,0), (1,1)
+for a_val in [0, 1]:
+    for b_val in [0, 1]:
+        print(f"Testando a={a_val}, b={b_val}...")
+
+        a = np.array([a_val], dtype=np.uint32)
+        b = np.array([b_val], dtype=np.uint32)
+
+        a_buf = rt.create_buffer(a)
+        b_buf = rt.create_buffer(b)
+
+        out = {}
+        names = ["out_and", "out_or", "out_not_a", "out_not_b", "out_complex"]
+        for name in names:
+            out[name] = rt.create_buffer(np.zeros(1, dtype=np.uint32))
+
+        inputs = {"a": a_buf, "b": b_buf, **out}
+        rt.run_kernel("truth_table_logic", 1, inputs)
+
+        results = {name: rt.read_buffer(buf, np.uint32, (1,))[0] for name, buf in out.items()}
+        expected = expected_outputs(a_val, b_val)
+        for name, exp_val in zip(names, expected):
+            assert results[name] == exp_val, f"{name} failed for a={a_val}, b={b_val}: got {results[name]}, expected {exp_val}"
+
+print("Tabela-verdade lógica validada com sucesso!")

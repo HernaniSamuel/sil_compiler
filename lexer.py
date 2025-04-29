@@ -6,27 +6,20 @@ def tokenize(source_code):
 
     i = 0
     while i < len(source_code):
-        char = source_code[i]
-
-        # Tratamento de comentários
-        if char == '/':
+        # Apenas comentários de bloco /* ... */
+        if i + 1 < len(source_code) and source_code[i] == '/' and source_code[i + 1] == '*':
+            i += 2
+            while i + 1 < len(source_code) and not (source_code[i] == '*' and source_code[i + 1] == '/'):
+                i += 1
             if i + 1 < len(source_code):
-                next_char = source_code[i+1]
-                if next_char == '/':
-                    i += 2
-                    while i < len(source_code) and source_code[i] != '\n':
-                        i += 1
-                    continue
-                elif next_char == '*':
-                    i += 2
-                    while i+1 < len(source_code) and not (source_code[i] == '*' and source_code[i+1] == '/'):
-                        i += 1
-                    i += 2
-                    continue
+                i += 2  # Pular o */
+            else:
+                i += 1  # Caso tenha chegado ao fim do arquivo
+            continue
 
-        # Tenta pegar operadores de dois caracteres
+        # Verificar operadores de dois caracteres (incluindo //)
         if i + 1 < len(source_code):
-            two_chars = source_code[i] + source_code[i+1]
+            two_chars = source_code[i] + source_code[i + 1]
             if two_chars in multi_char_specials:
                 if current:
                     tokens.append(current)
@@ -35,7 +28,8 @@ def tokenize(source_code):
                 i += 2
                 continue
 
-        # Se espaço ou quebra
+        char = source_code[i]
+
         if char.isspace():
             if current:
                 tokens.append(current)
@@ -52,14 +46,17 @@ def tokenize(source_code):
                 i += 1
             tokens.append(word)
 
-            # Se for @cpu, capturar tudo bruto depois
             if word == "@cpu":
                 raw_code = ""
+                # Pular espaços em branco após @cpu
+                while i < len(source_code) and source_code[i].isspace():
+                    i += 1
+                # Capturar todo o código do bloco CPU
                 while i < len(source_code):
                     raw_code += source_code[i]
                     i += 1
                 tokens.append(raw_code)
-                break  # já lemos tudo
+                break
             continue
         elif char in specials:
             if current:
@@ -73,5 +70,8 @@ def tokenize(source_code):
 
     if current:
         tokens.append(current)
+
+    # Debug para ver todos os tokens (descomente se necessário)
+    # print("\nTODOS OS TOKENS:", tokens)
 
     return tokens

@@ -1,0 +1,93 @@
+; SPIR-V
+; Version: 1.0
+OpCapability Kernel
+OpMemoryModel Logical OpenCL
+OpEntryPoint Kernel %13 "truth_table_logic"
+%1 = OpTypeVoid
+%2 = OpTypeBool
+%3 = OpTypeInt 32 0
+%4 = OpTypeFloat 32
+%5 = OpTypePointer CrossWorkgroup %3
+%6 = OpTypePointer CrossWorkgroup %3
+%7 = OpTypePointer CrossWorkgroup %4
+%8 = OpTypePointer CrossWorkgroup %2
+%9 = OpTypePointer Function %3
+%10 = OpTypePointer Function %3
+%11 = OpTypePointer Function %4
+%12 = OpTypePointer Function %2
+%14 = OpTypeFunction %1 %6 %6 %6 %6 %6 %6 %6
+%29 = OpConstant %3 0
+%35 = OpConstant %3 1
+%13 = OpFunction %1 None %14
+%15 = OpFunctionParameter %6
+%16 = OpFunctionParameter %6
+%17 = OpFunctionParameter %6
+%18 = OpFunctionParameter %6
+%19 = OpFunctionParameter %6
+%20 = OpFunctionParameter %6
+%21 = OpFunctionParameter %6
+%22 = OpLabel
+%23 = OpVariable %10 Function
+%24 = OpVariable %10 Function
+%25 = OpVariable %10 Function
+%26 = OpVariable %10 Function
+%27 = OpVariable %10 Function
+%28 = OpLoad %3 %15
+%30 = OpINotEqual %2 %28 %29
+%31 = OpLoad %3 %16
+%32 = OpINotEqual %2 %31 %29
+%33 = OpLogicalAnd %2 %30 %32
+%34 = OpSelect %3 %33 %35 %29
+OpStore %23 %34
+%36 = OpLoad %3 %15
+%37 = OpINotEqual %2 %36 %29
+%38 = OpLoad %3 %16
+%39 = OpINotEqual %2 %38 %29
+%40 = OpLogicalOr %2 %37 %39
+%41 = OpSelect %3 %40 %35 %29
+OpStore %24 %41
+%42 = OpLoad %3 %15
+%43 = OpINotEqual %2 %42 %29
+%44 = OpSelect %3 %43 %35 %29
+%45 = OpISub %3 %35 %44
+%46 = OpINotEqual %2 %45 %29
+%47 = OpSelect %3 %46 %35 %29
+OpStore %25 %47
+%48 = OpLoad %3 %16
+%49 = OpINotEqual %2 %48 %29
+%50 = OpSelect %3 %49 %35 %29
+%51 = OpISub %3 %35 %50
+%52 = OpINotEqual %2 %51 %29
+%53 = OpSelect %3 %52 %35 %29
+OpStore %26 %53
+%54 = OpLoad %3 %15
+%55 = OpINotEqual %2 %54 %29
+%56 = OpLoad %3 %16
+%57 = OpIEqual %2 %56 %29
+%58 = OpSelect %3 %57 %35 %29
+%59 = OpISub %3 %35 %58
+%60 = OpINotEqual %2 %59 %29
+%61 = OpLogicalAnd %2 %55 %60
+%62 = OpLoad %3 %15
+%63 = OpIEqual %2 %62 %29
+%64 = OpLoad %3 %16
+%65 = OpINotEqual %2 %64 %29
+%66 = OpSelect %3 %65 %35 %29
+%67 = OpISub %3 %35 %66
+%68 = OpINotEqual %2 %67 %29
+%69 = OpLogicalAnd %2 %63 %68
+%70 = OpLogicalOr %2 %61 %69
+%71 = OpSelect %3 %70 %35 %29
+OpStore %27 %71
+%72 = OpLoad %3 %23
+OpStore %17 %72
+%73 = OpLoad %3 %24
+OpStore %18 %73
+%74 = OpLoad %3 %25
+OpStore %19 %74
+%75 = OpLoad %3 %26
+OpStore %20 %75
+%76 = OpLoad %3 %27
+OpStore %21 %76
+OpReturn
+OpFunctionEnd

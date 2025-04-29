@@ -1,0 +1,142 @@
+/* ===================
+   Integers
+   =================== */
+
+kernel int_ops(a: uint, b: uint, out_sum: ptr_uint, out_sub: ptr_uint, out_mul: ptr_uint, out_div: ptr_uint, out_mod: ptr_uint,
+               out_eq: ptr_uint, out_neq: ptr_uint, out_lt: ptr_uint, out_gt: ptr_uint, out_le: ptr_uint, out_ge: ptr_uint) {
+    var sum: uint = a + b;
+    var sub: uint = a - b;
+    var mul: uint = a * b;
+    var div: uint = a // b;
+    var mod: uint = a % b;
+
+    var eq: uint = (a == b);
+    var neq: uint = (a != b);
+    var lt: uint = (a < b);
+    var gt: uint = (a > b);
+    var le: uint = (a <= b);
+    var ge: uint = (a >= b);
+
+    out_sum = sum;
+    out_sub = sub;
+    out_mul = mul;
+    out_div = div;
+    out_mod = mod;
+
+    out_eq = eq;
+    out_neq = neq;
+    out_lt = lt;
+    out_gt = gt;
+    out_le = le;
+    out_ge = ge;
+}
+
+/* ===================
+   Floats
+   =================== */
+
+kernel float_ops(x: float, y: float, out_sum: ptr_float, out_sub: ptr_float, out_mul: ptr_float, out_div: ptr_float,
+                 out_eq: ptr_uint, out_neq: ptr_uint, out_lt: ptr_uint, out_gt: ptr_uint, out_le: ptr_uint, out_ge: ptr_uint) {
+    var sum: float = x + y;
+    var sub: float = x - y;
+    var mul: float = x * y;
+    var div: float = x / y;
+
+    var eq: uint = (x == y);
+    var neq: uint = (x != y);
+    var lt: uint = (x < y);
+    var gt: uint = (x > y);
+    var le: uint = (x <= y);
+    var ge: uint = (x >= y);
+
+    out_sum = sum;
+    out_sub = sub;
+    out_mul = mul;
+    out_div = div;
+
+    out_eq = eq;
+    out_neq = neq;
+    out_lt = lt;
+    out_gt = gt;
+    out_le = le;
+    out_ge = ge;
+}
+
+@cpu
+import numpy as np
+
+# INT TEST
+a = np.array([10], dtype=np.uint32)
+b = np.array([3], dtype=np.uint32)
+
+# Criação explícita dos buffers de entrada
+a_buf = rt.create_buffer(a)
+b_buf = rt.create_buffer(b)
+
+# Buffers de saída (todos do tipo uint32)
+out = {}
+for name in [
+    "out_sum", "out_sub", "out_mul", "out_div", "out_mod",
+    "out_eq", "out_neq", "out_lt", "out_gt", "out_le", "out_ge"
+]:
+    out[name] = rt.create_buffer(np.zeros(1, dtype=np.uint32))
+
+# Executa kernel
+inputs = {"a": a_buf, "b": b_buf, **out}
+rt.run_kernel("int_ops", 1, inputs)
+
+# Leitura dos resultados
+results = {name: rt.read_buffer(buf, np.uint32, (1,))[0] for name, buf in out.items()}
+
+# Verificações
+assert results["out_sum"] == 13, f"int sum failed: {results['out_sum']}"
+assert results["out_sub"] == 7, f"int sub failed: {results['out_sub']}"
+assert results["out_mul"] == 30, f"int mul failed: {results['out_mul']}"
+assert results["out_div"] == 3, f"int div failed: {results['out_div']}"
+assert results["out_mod"] == 1, f"int mod failed: {results['out_mod']}"
+assert results["out_eq"] == 0, f"int eq failed: {results['out_eq']}"
+assert results["out_neq"] == 1, f"int neq failed: {results['out_neq']}"
+assert results["out_lt"] == 0, f"int lt failed: {results['out_lt']}"
+assert results["out_gt"] == 1, f"int gt failed: {results['out_gt']}"
+assert results["out_le"] == 0, f"int le failed: {results['out_le']}"
+assert results["out_ge"] == 1, f"int ge failed: {results['out_ge']}"
+
+print("Integer operations passed!")
+
+# FLOAT TEST
+x = np.array([10.0], dtype=np.float32)
+y = np.array([2.0], dtype=np.float32)
+
+x_buf = rt.create_buffer(x)
+y_buf = rt.create_buffer(y)
+
+# Buffers de saída float (float32 ou uint32 dependendo do nome)
+out_float = {}
+for name in [
+    "out_sum", "out_sub", "out_mul", "out_div",
+    "out_eq", "out_neq", "out_lt", "out_gt", "out_le", "out_ge"
+]:
+    dtype = np.float32 if name in ["out_sum", "out_sub", "out_mul", "out_div"] else np.uint32
+    out_float[name] = rt.create_buffer(np.zeros(1, dtype=dtype))
+
+inputs_float = {"x": x_buf, "y": y_buf, **out_float}
+rt.run_kernel("float_ops", 1, inputs_float)
+
+results_float = {}
+for name, buf in out_float.items():
+    dtype = np.float32 if name in ["out_sum", "out_sub", "out_mul", "out_div"] else np.uint32
+    results_float[name] = rt.read_buffer(buf, dtype, (1,))[0]
+
+# Verificações
+assert abs(results_float["out_sum"] - 12.0) < 1e-5, f"float sum failed: {results_float['out_sum']}"
+assert abs(results_float["out_sub"] - 8.0) < 1e-5, f"float sub failed: {results_float['out_sub']}"
+assert abs(results_float["out_mul"] - 20.0) < 1e-5, f"float mul failed: {results_float['out_mul']}"
+assert abs(results_float["out_div"] - 5.0) < 1e-5, f"float div failed: {results_float['out_div']}"
+assert results_float["out_eq"] == 0, f"float eq failed: {results_float['out_eq']}"
+assert results_float["out_neq"] == 1, f"float neq failed: {results_float['out_neq']}"
+assert results_float["out_lt"] == 0, f"float lt failed: {results_float['out_lt']}"
+assert results_float["out_gt"] == 1, f"float gt failed: {results_float['out_gt']}"
+assert results_float["out_le"] == 0, f"float le failed: {results_float['out_le']}"
+assert results_float["out_ge"] == 1, f"float ge failed: {results_float['out_ge']}"
+
+print("Float operations passed!")
