@@ -78,6 +78,13 @@ class Parser:
             return self.parse_return()
         elif tok == "if":
             return self.parse_if()
+        elif tok == "loop":
+            return self.parse_loop()
+        elif tok == "break":
+            self.next()
+            self.expect(";")
+            return sil_ast.Break()
+
         elif tok == "@cpu":
             return self.parse_cpu_block()
         else:
@@ -363,3 +370,14 @@ class Parser:
         value = self.parse_expression()
         self.expect(";")
         return sil_ast.Assign(name, value)
+
+    def parse_loop(self):
+        self.expect("loop")
+        self.expect("{")
+        body = []
+        while self.peek() != "}":
+            if self.peek() is None:
+                raise Exception("Fim inesperado no corpo do loop")
+            body.append(self.parse_statement())
+        self.expect("}")
+        return sil_ast.Loop(body)

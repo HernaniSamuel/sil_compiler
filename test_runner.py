@@ -1,5 +1,7 @@
 import subprocess
 import sys
+import os
+import glob
 
 # ANSI color codes
 RED = "\033[91m"
@@ -8,34 +10,56 @@ YELLOW = "\033[93m"
 RESET = "\033[0m"
 
 def run_command(command, description):
-    print(f"{YELLOW}== {description} =={RESET}")
     try:
         result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        if result.stdout.strip():
-            print(result.stdout.strip())
-        if result.stderr.strip():
-            print(f"{YELLOW}Warnings:{RESET}\n{result.stderr.strip()}")
+        return True, result.stdout.strip(), result.stderr.strip()
     except subprocess.CalledProcessError as e:
-        print(f"{RED}ERROR during {description}:{RESET}")
-        if e.stdout.strip():
-            print(e.stdout.strip())
-        if e.stderr.strip():
-            print(e.stderr.strip())
-        sys.exit(1)
+        return False, e.stdout.strip(), e.stderr.strip()
 
 def main():
-    print(f"{YELLOW}==== TESTING SIL COMPILER PIPELINE ===={RESET}")
+    print(f"{YELLOW}==== RODANDO TODOS OS TESTES SIL ===={RESET}")
 
-    # Step 1: Run your compiler (main.py must output 'output.spvasm')
-    run_command("python main.py", "Running your SIL compiler (main.py)")
+    test_files = glob.glob("sil_tests/**/*.sil", recursive=True)
+    if not test_files:
+        print(f"{RED}Nenhum teste encontrado em sil_tests/**/*{RESET}")
+        return
 
-    # Step 2: Assemble .spvasm into .spv
-    run_command("spirv-as output.spvasm -o output.spv", "Assembling SPIR-V binary (spirv-as)")
+    passed = []
+    failed = []
 
-    # Step 3: Validate .spv
-    run_command("spirv-val output.spv", "Validating SPIR-V binary (spirv-val)")
+    for test_file in sorted(test_files):
+        print(f"\n{YELLOW}>> Executando teste: {test_file}{RESET}")
+        ok, stdout, stderr = run_command(f"python main.py {test_file}", f"Compilando e executando {os.path.basename(test_file)}")
 
-    print(f"\n{GREEN}✅ All steps completed successfully!{RESET}")
+        if ok:
+            print(f"{GREEN}✓ Sucesso:{RESET} {test_file}")
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(f"{YELLOW}Avisos:{RESET}\n{stderr}")
+            passed.append(test_file)
+        else:
+            print(f"{RED}✗ Falha:{RESET} {test_file}")
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr)
+            failed.append(test_file)
+
+    # Resumo final
+    print(f"\n{YELLOW}==== RESUMO DOS TESTES ===={RESET}")
+    print(f"{GREEN}✓ Passaram ({len(passed)}):{RESET}")
+    for f in passed:
+        print(f"  - {f}")
+
+    print(f"{RED}✗ Falharam ({len(failed)}):{RESET}")
+    for f in failed:
+        print(f"  - {f}")
+
+    if failed:
+        sys.exit(1)
+    else:
+        print(f"\n{GREEN}✅ Todos os testes passaram com sucesso!{RESET}")
 
 if __name__ == "__main__":
     main()

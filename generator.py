@@ -186,7 +186,22 @@ class Generator:
                 result.extend(self.generate_stmt(assign))
 
         for stmt in other_stmts:
-            result.extend(self.generate_stmt(stmt))
+            stmt_code = self.generate_stmt(stmt)
+            if stmt_code is None:
+                raise Exception(f"generate_stmt retornou None para stmt: {stmt}")
+
+            # Corrigido: se o próximo começa com OpLabel e não fechamos o anterior, precisa de OpBranch
+            if not self.ends_with_branch(result):
+                if stmt_code and stmt_code[0].strip().endswith("= OpLabel"):
+                    label_id = stmt_code[0].split('=')[0].strip()
+                    result.append(f"OpBranch {label_id}")
+                else:
+                    # Cria um bloco novo antes do código que não começa com label
+                    label_id = self.new_id()
+                    result.append(f"OpBranch {label_id}")
+                    result.append(f"{label_id} = OpLabel")
+
+            result.extend(stmt_code)
 
         if not (node.body and isinstance(node.body[-1], sil_ast.Return)):
             result.append("OpReturn")
@@ -239,6 +254,17 @@ class Generator:
 
         elif isinstance(stmt, sil_ast.If):
             result.extend(self.generate_if(stmt))
+
+        elif isinstance(stmt, sil_ast.Loop):
+            return self.generate_loop(stmt)
+
+        elif isinstance(stmt, sil_ast.Break):
+            if not hasattr(self, 'break_target') or self.break_target is None:
+                raise Exception("Break usado fora de um loop")
+
+            # Criar um bloco para o break e ramificar diretamente para o merge
+            # Não precisamos mais criar um label aqui, apenas ramificar para o destino
+            result.append(f"OpBranch {self.break_target}")
 
         else:
             raise Exception(f"Unsupported statement type: {type(stmt)}")
@@ -386,13 +412,19 @@ class Generator:
         result.append(f"{then_label} = OpLabel")
         for s in stmt.then_body:
             result.extend(self.generate_stmt(s))
-        result.append(f"OpBranch {merge_label}")
+
+        # Verificar se o último statement já é um branch (como um break)
+        if not self.ends_with_branch(result):
+            result.append(f"OpBranch {merge_label}")
 
         if stmt.else_body:
             result.append(f"{else_label} = OpLabel")
             for s in stmt.else_body:
                 result.extend(self.generate_stmt(s))
-            result.append(f"OpBranch {merge_label}")
+
+            # Verificar se o último statement já é um branch
+            if not self.ends_with_branch(result):
+                result.append(f"OpBranch {merge_label}")
 
         result.append(f"{merge_label} = OpLabel")
 
@@ -403,3 +435,49 @@ class Generator:
             const_id = self.new_id()
             self.constants["false"] = f"{const_id} = OpConstantFalse {self.type_ids['bool']}"
         return self.constants["false"].split('=')[0].strip()
+
+    def generate_loop(self, stmt):
+        merge = self.new_id()
+        continue_ = self.new_id()
+        cond = self.new_id()
+        body = self.new_id()
+        header = self.new_id()
+
+        prev_break_target = getattr(self, 'break_target', None)
+        self.break_target = merge
+
+        result = []
+
+        # Cabeçalho do loop
+        result.append(f"{header} = OpLabel")
+        result.append(f"OpLoopMerge {merge} {continue_} None")
+        result.append(f"OpBranch {cond}")
+
+        # Bloco condicional
+        result.append(f"{cond} = OpLabel")
+        result.append(f"OpBranch {body}")  # Sempre entra no corpo (sem checagem por enquanto)
+
+        # Corpo do loop
+        result.append(f"{body} = OpLabel")
+        loop_body = []
+        for s in stmt.body:
+            loop_body.extend(self.generate_stmt(s))
+        if not self.ends_with_branch(loop_body):
+            loop_body.append(f"OpBranch {continue_}")
+        result.extend(loop_body)
+
+        # Bloco continue
+        result.append(f"{continue_} = OpLabel")
+        result.append(f"OpBranch {cond}")
+
+        # Bloco de saída
+        result.append(f"{merge} = OpLabel")
+
+        self.break_target = prev_break_target
+        return result
+
+    def ends_with_branch(self, code):
+        if not code:
+            return False
+        return code[-1].startswith("OpBranch") or code[-1].startswith("OpReturn") or code[-1].startswith(
+            "OpBranchConditional")

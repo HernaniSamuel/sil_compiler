@@ -79,15 +79,25 @@ OpStore %26 %53
 %70 = OpLogicalOr %2 %61 %69
 %71 = OpSelect %3 %70 %35 %29
 OpStore %27 %71
+OpBranch %73
+%73 = OpLabel
 %72 = OpLoad %3 %23
 OpStore %17 %72
-%73 = OpLoad %3 %24
-OpStore %18 %73
-%74 = OpLoad %3 %25
-OpStore %19 %74
-%75 = OpLoad %3 %26
-OpStore %20 %75
-%76 = OpLoad %3 %27
-OpStore %21 %76
+OpBranch %75
+%75 = OpLabel
+%74 = OpLoad %3 %24
+OpStore %18 %74
+OpBranch %77
+%77 = OpLabel
+%76 = OpLoad %3 %25
+OpStore %19 %76
+OpBranch %79
+%79 = OpLabel
+%78 = OpLoad %3 %26
+OpStore %20 %78
+OpBranch %81
+%81 = OpLabel
+%80 = OpLoad %3 %27
+OpStore %21 %80
 OpReturn
 OpFunctionEnd

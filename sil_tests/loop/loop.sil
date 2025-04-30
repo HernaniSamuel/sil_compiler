@@ -1,0 +1,22 @@
+kernel main(a: uint, out: uint){
+    var b: uint = a + 5;
+    loop{
+        a = a + 1;
+        if(a == b){ break; }
+    }
+    out = a;
+}
+
+@cpu
+params = {
+    "a": np.array([0], dtype=np.uint32),
+    "out": np.array([0], dtype=np.uint32)
+}
+buffers = {name: rt.create_buffer(arr) for name, arr in params.items()}
+
+rt.run_kernel("main", 1, buffers)
+result = rt.read_buffer(buffers["out"], np.uint32, (1,))
+
+print("Resultado:", result[0])
+
+assert result[0] == 5, f"Erro: esperado 5, mas obtido {result[0]}"
