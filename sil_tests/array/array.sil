@@ -1,0 +1,27 @@
+/** Teste de cópia de arrays com ponteiros */
+
+kernel copia(a: array(uint, 4), b: array(uint, 4)) {
+    var temp: array(uint, 4);
+
+    var i: uint = 0;
+    loop {
+        if (i >= 4) {break;}
+        temp[i] = a[i];
+        i = i + 1;
+    }
+
+    var j: uint = 0;
+    loop {
+        if (j >= 4) {break;}
+        b[j] = temp[j];
+        j = j + 1;
+    }
+}
+
+@cpu
+def copia(a: Array[uint, 4], b: Array[uint, 4]):
+    temp = [0] * 4
+    for i in range(4):
+        temp[i] = a[i]
+    for j in range(4):
+        b[j] = temp[j]

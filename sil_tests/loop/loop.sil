@@ -8,6 +8,7 @@ kernel main(a: uint, out: uint){
 }
 
 @cpu
+import numpy as np
 params = {
     "a": np.array([0], dtype=np.uint32),
     "out": np.array([0], dtype=np.uint32)

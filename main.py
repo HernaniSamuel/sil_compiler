@@ -1,10 +1,9 @@
 import sys
 import lexer
-import parser
-import generator
+from parser import parser
+from generator import generator
 import sil_ast
 from runtime.host import HostRuntime
-import numpy as np
 import subprocess
 import os
 import traceback
@@ -57,7 +56,7 @@ def main():
 
         # Analisar a árvore sintática
         p = parser.Parser(tokens)
-        p.debug = debug_mode  # Habilitar modo de depuração se solicitado
+        # p.debug = debug_mode  # Habilitar modo de depuração se solicitado
         ast_tree = p.parse()
 
         # Exibir informações sobre a AST
