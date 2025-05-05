@@ -2,7 +2,7 @@
 ; Version: 1.0
 OpCapability Kernel
 OpMemoryModel Logical OpenCL
-OpEntryPoint Kernel %13 "copia"
+OpEntryPoint Kernel %13 "matmul_2x2"
 %1 = OpTypeVoid
 %2 = OpTypeBool
 %3 = OpTypeInt 32 0
@@ -15,72 +15,44 @@ OpEntryPoint Kernel %13 "copia"
 %10 = OpTypePointer Function %3
 %11 = OpTypePointer Function %4
 %12 = OpTypePointer Function %2
-%14 = OpConstant %3 4
-%15 = OpTypeArray %3 %14
-%16 = OpTypePointer CrossWorkgroup %15
-%36 = OpTypePointer Function %3
-%17 = OpTypeFunction %1 %16 %16 %16 %16
-%21 = OpTypePointer Function %15
-%33 = OpConstant %3 4
-%41 = OpConstant %3 1
-%13 = OpFunction %1 None %17
-%18 = OpFunctionParameter %16
-%19 = OpFunctionParameter %16
-%20 = OpLabel
-%22 = OpVariable %21 Function
-%23 = OpVariable %10 Function
-%24 = OpVariable %10 Function
-OpBranch %29
-%29 = OpLabel
-OpLoopMerge %25 %26 None
-OpBranch %27
+%14 = OpTypeFunction %1 %6 %6 %6 %6 %6 %6 %6 %6 %6 %6 %6 %6
+%13 = OpFunction %1 None %14
+%15 = OpFunctionParameter %6
+%16 = OpFunctionParameter %6
+%17 = OpFunctionParameter %6
+%18 = OpFunctionParameter %6
+%19 = OpFunctionParameter %6
+%20 = OpFunctionParameter %6
+%21 = OpFunctionParameter %6
+%22 = OpFunctionParameter %6
+%23 = OpFunctionParameter %6
+%24 = OpFunctionParameter %6
+%25 = OpFunctionParameter %6
+%26 = OpFunctionParameter %6
 %27 = OpLabel
-OpBranch %28
-%28 = OpLabel
-%32 = OpLoad %3 %23
-%34 = OpUGreaterThanEqual %2 %32 %33
-OpSelectionMerge %31 None
-OpBranchConditional %34 %30 %31
-%30 = OpLabel
-OpBranch %25
+OpBranch %31
 %31 = OpLabel
-%35 = OpLoad %3 %23
-%37 = OpAccessChain %36 %18 %35
-%38 = OpLoad %3 %23
-%39 = OpAccessChain %10 %22 %38
-OpStore %39 %37
-%40 = OpLoad %3 %23
-%42 = OpIAdd %3 %40 %41
-OpStore %23 %42
-OpBranch %26
-%26 = OpLabel
-OpBranch %27
-%25 = OpLabel
-OpBranch %47
-%47 = OpLabel
-OpLoopMerge %43 %44 None
-OpBranch %45
-%45 = OpLabel
-OpBranch %46
-%46 = OpLabel
-%50 = OpLoad %3 %24
-%51 = OpUGreaterThanEqual %2 %50 %33
-OpSelectionMerge %49 None
-OpBranchConditional %51 %48 %49
-%48 = OpLabel
+%28 = OpLoad %3 %15
+%29 = OpLoad %3 %19
+%30 = OpIMul %3 %28 %29
+OpStore %23 %30
+OpBranch %35
+%35 = OpLabel
+%32 = OpLoad %3 %16
+%33 = OpLoad %3 %20
+%34 = OpIMul %3 %32 %33
+OpStore %24 %34
+OpBranch %39
+%39 = OpLabel
+%36 = OpLoad %3 %17
+%37 = OpLoad %3 %21
+%38 = OpIMul %3 %36 %37
+OpStore %25 %38
 OpBranch %43
-%49 = OpLabel
-%52 = OpLoad %3 %24
-%53 = OpAccessChain %10 %22 %52
-%54 = OpLoad %3 %24
-%55 = OpAccessChain %36 %19 %54
-OpStore %55 %53
-%56 = OpLoad %3 %24
-%57 = OpIAdd %3 %56 %41
-OpStore %24 %57
-OpBranch %44
-%44 = OpLabel
-OpBranch %45
 %43 = OpLabel
+%40 = OpLoad %3 %18
+%41 = OpLoad %3 %22
+%42 = OpIMul %3 %40 %41
+OpStore %26 %42
 OpReturn
 OpFunctionEnd

@@ -8,6 +8,8 @@ import subprocess
 import os
 import traceback
 
+from minisil import transform
+
 
 def display_tokens(tokens, max_per_line=10):
     """Exibe tokens em um formato mais legível"""
@@ -33,8 +35,14 @@ def main():
         folder = "."
 
     try:
-        with open(filename, "r") as f:
-            source_code = f.read()
+        with open(filename, "r", encoding="utf-8") as f:
+            original_code = f.read()
+
+        print(f"Compilando {filename}...")
+        print("Pré-processando com Mini-SIL...")
+
+        # Transforma o código com minisil (arrays e loops)
+        source_code = transform(original_code)
 
         print(f"Compilando {filename}...")
 
