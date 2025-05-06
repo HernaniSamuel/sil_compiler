@@ -9,6 +9,9 @@ def generate_expr(self, expr):
         return _generate_unary(self, expr)
     elif isinstance(expr, sil_ast.BinaryOp):
         return _generate_binary(self, expr)
+    elif isinstance(expr, sil_ast.BitwiseExpr):
+        return self.generate_expr(expr.expr)
+
     else:
         raise Exception(f"Unsupported expression type: {type(expr)}")
 
@@ -70,6 +73,11 @@ def _generate_unary(self, expr):
         result.append(f"{result_id} = OpSNegate {self.type_ids[operand_type]} {operand_id}")
         return result, result_id, operand_type
 
+    elif expr.op == '~':
+        result_id = self.new_id()
+        result.append(f"{result_id} = OpNot {self.type_ids[operand_type]} {operand_id}")
+        return result, result_id, operand_type
+
     else:
         raise Exception(f"Unsupported unary operator: {expr.op}")
 
@@ -100,7 +108,9 @@ def _generate_binary(self, expr):
     op_map_int = {
         '+': 'OpIAdd', '-': 'OpISub', '*': 'OpIMul', '/': 'OpSDiv', '//': 'OpUDiv', '%': 'OpUMod',
         '==': 'OpIEqual', '!=': 'OpINotEqual', '<': 'OpULessThan', '>': 'OpUGreaterThan',
-        '<=': 'OpULessThanEqual', '>=': 'OpUGreaterThanEqual', '&&': 'OpLogicalAnd', '||': 'OpLogicalOr'
+        '<=': 'OpULessThanEqual', '>=': 'OpUGreaterThanEqual', '&&': 'OpLogicalAnd', '||': 'OpLogicalOr',
+        '&': 'OpBitwiseAnd', '|': 'OpBitwiseOr', '^': 'OpBitwiseXor',
+        '<<': 'OpShiftLeftLogical', '>>': 'OpShiftRightLogical'
     }
 
     op_map_float = {

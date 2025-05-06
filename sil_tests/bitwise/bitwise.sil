@@ -1,0 +1,20 @@
+kernel bitwise_extreme(out: uint = array[2]) {
+    var val: uint = 1;
+    out[0] = bitwise{ val << 31 };
+    out[1] = bitwise{ (val << 31) >> 31 };
+}
+
+@cpu
+def bitwise_extreme(**inputs):
+    val = 1
+    shifted = (val << 31) & 0xFFFFFFFF
+    recovered = (shifted >> 31) & 0xFFFFFFFF
+
+    actual0 = inputs["OUT_0"][0]
+    actual1 = inputs["OUT_1"][0]
+
+    print(f"OUT_0 = {actual0}, esperado = {shifted}")
+    print(f"OUT_1 = {actual1}, esperado = {recovered}")
+
+    if actual0 != shifted or actual1 != recovered:
+        raise Exception("Teste bitwise_extreme falhou")

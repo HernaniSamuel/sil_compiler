@@ -112,3 +112,7 @@ class CpuBlock:
 
     def __repr__(self):
         return f"CpuBlock(code={self.code})"
+
+class BitwiseExpr:
+    def __init__(self, expr):
+        self.expr = expr  # Pode ser uma árvore de operações bitwise

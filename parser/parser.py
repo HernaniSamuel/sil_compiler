@@ -9,7 +9,7 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
-        self.binary_operators = ['+', '-', '*', '/', '//', '%', '==', '!=', '<', '>', '<=', '>=', '&&', '||']
+        self.binary_operators = ['+', '-', '*', '/', '//', '%', '==', '!=', '<', '>', '<=', '>=', '&&', '||', '<<', '>>']
         self.debug = False
 
     def peek(self):
@@ -125,3 +125,15 @@ class Parser:
 
     def parse_primary(self):
         return expressions.parse_primary(self)
+
+    def parse_bitwise_block(self):
+        return expressions.parse_bitwise_block(self)
+
+    def parse_bitwise_expression(self):
+        return expressions.parse_bitwise_expression(self)
+
+    def parse_bitwise_primary(self):
+        return expressions.parse_bitwise_primary(self)
+
+    def parse_bitwise_unary(self):
+        return expressions.parse_bitwise_unary(self)

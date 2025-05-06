@@ -43,6 +43,10 @@ def parse_unary(self):
         self.next()
         operand = self.parse_unary()
         return sil_ast.UnaryOp('-', operand)
+    elif tok == '~':
+        self.next()
+        operand = self.parse_unary()
+        return sil_ast.UnaryOp('~', operand)
     else:
         return self.parse_primary()
 
@@ -64,6 +68,10 @@ def parse_multiplicative(self):
 
 def parse_primary(self):
     tok = self.peek()
+
+    #Detectar bitwise
+    if self.peek() == "bitwise":
+        return self.parse_bitwise_block()
 
     # Detectar parênteses para subexpressões
     if tok == "(":
@@ -99,3 +107,59 @@ def parse_primary(self):
         return sil_ast.Ident(tok)
     else:
         raise Exception(f"Token inesperado na expressão: '{tok}'")
+
+def parse_bitwise_block(self):
+    self.expect("bitwise")
+    self.expect("{")
+    expr = self.parse_bitwise_expression()
+    self.expect("}")
+    return sil_ast.BitwiseExpr(expr)
+
+def parse_bitwise_expression(self):
+    left = self.parse_bitwise_unary()
+    while self.peek() in ['&', '|', '^', '<<', '>>']:
+        op = self.next()
+        right = self.parse_bitwise_unary()
+        left = sil_ast.BinaryOp(left, op, right)
+    return left
+
+def parse_bitwise_primary(self):
+    tok = self.peek()
+
+    if tok == "(":
+        self.next()
+        expr = self.parse_bitwise_expression()
+        if self.peek() != ")":
+            raise Exception(f"Esperado ')', mas encontrado '{self.peek()}'")
+        self.next()
+        return expr
+
+    tok = self.next()
+
+    if tok is None:
+        raise Exception("Fim inesperado dentro de expressão bitwise")
+
+    if isinstance(tok, str) and tok.isdigit():
+        return sil_ast.Literal(int(tok))
+
+    try:
+        if '.' in tok:
+            return sil_ast.Literal(float(tok))
+        if tok.lstrip('-').isdigit():
+            return sil_ast.Literal(int(tok))
+    except ValueError:
+        pass
+
+    if self._is_identifier(tok):
+        return sil_ast.Ident(tok)
+
+    raise Exception(f"Token inesperado na expressão bitwise: '{tok}'")
+
+def parse_bitwise_unary(self):
+    tok = self.peek()
+    if tok in ['~', '-']:
+        self.next()
+        operand = self.parse_bitwise_unary()
+        return sil_ast.UnaryOp(tok, operand)
+    else:
+        return self.parse_bitwise_primary()
