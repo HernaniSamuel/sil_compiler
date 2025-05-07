@@ -73,6 +73,10 @@ def parse_primary(self):
     if self.peek() == "bitwise":
         return self.parse_bitwise_block()
 
+    #Detectar cast
+    if self.peek() == "cast":
+        return self.parse_cast_block()
+
     # Detectar parênteses para subexpressões
     if tok == "(":
         self.next()  # Consumir o parêntese de abertura
@@ -89,8 +93,20 @@ def parse_primary(self):
         raise Exception("Fim inesperado da entrada durante a análise da expressão")
 
     # Verificar literais numéricos
-    if isinstance(tok, str) and tok.isdigit():
-        return sil_ast.Literal(int(tok))
+    # Verificar literais numéricos
+    if isinstance(tok, str):
+        try:
+            # hexadecimal
+            if tok.startswith("0x") or tok.startswith("0X"):
+                return sil_ast.Literal(int(tok, 16))
+            # float com ponto
+            elif '.' in tok:
+                return sil_ast.Literal(float(tok))
+            # decimal (incluindo negativo)
+            elif tok.lstrip('-').isdigit():
+                return sil_ast.Literal(int(tok))
+        except ValueError:
+            pass
 
     try:
         # Verificar se é um float
@@ -163,3 +179,12 @@ def parse_bitwise_unary(self):
         return sil_ast.UnaryOp(tok, operand)
     else:
         return self.parse_bitwise_primary()
+
+def parse_cast_block(self):
+    self.expect("cast")
+    self.expect("{")
+    expr = self.parse_expression()
+    self.expect("as")
+    target_type = self.next()
+    self.expect("}")
+    return sil_ast.CastExpr(expr, target_type)

@@ -1,0 +1,68 @@
+kernel cast_supreme_test(out: uint = array[10]) {
+    /** 1. Cast básico int -> float -> int */
+    var uint_val: uint = 42;
+    var float_val: float = cast{ uint_val as float };
+    out[0] = cast{ float_val as uint };
+
+    /** 2. Cast com expressões aritméticas */
+    var complex_expr: float = cast{ (uint_val * 2 + 10) / 3 as float };
+    out[1] = cast{ complex_expr as uint };
+
+    /** 3. Cast aninhado com múltiplas conversões */
+    out[2] = cast{ cast{ cast{ uint_val as float } * 2.5 as float } as uint };
+
+    /** 4. Cast com valores limites/extremos */
+    var large_uint: uint = 0xFFFFFFFF;  /** máximo valor uint32 */
+    out[3] = cast{ cast{ large_uint as float } as uint };
+    out[4] = cast{ cast{ large_uint as float } as uint };
+
+    /** 5. Cast com zero */
+    var zero: uint = 0;
+    out[5] = cast{ cast{ zero as float } as uint };
+
+    /** 6. Cast com valores fracionados */
+    var frac_float: float = 42.75;
+    out[6] = cast{ frac_float as uint };  /** deve truncar para 42 */
+
+    /** 7. Cast com operações lógicas */
+    var bool_val: uint = (uint_val > 30);
+    out[7] = cast{ cast{ bool_val as float } as uint };
+
+    /** 8. Cast em expressão condicional */
+    var cond_val: uint = 0;
+    if (cast{ float_val as uint } == uint_val) {
+        cond_val = 123;
+    } else {
+        cond_val = 456;
+    }
+    out[8] = cond_val;
+
+    /** 9. Cast com operação aritmética pós-cast */
+    var temp_float: float = cast{ uint_val as float } + 0.5;
+    out[9] = cast{ temp_float as uint };
+}
+
+@cpu
+def cast_supreme_test(**inputs):
+    x = 42
+    large = 0xFFFFFFFF
+    zero = 0
+    frac = 42.75
+    float_val = float(x)
+    expected = [
+        int(float_val),                               # [0]
+        int(((x * 2 + 10) / 3)),                       # [1]
+        int(float(x) * 2.5),                           # [2]
+        int(float(large)),                             # [3]
+        int(float(large)),                             # [4]
+        int(float(zero)),                              # [5]
+        int(frac),                                     # [6]
+        int(float(x > 30)),                            # [7]
+        123 if int(float_val) == x else 456,           # [8]
+        int(float(x) + 0.5)                            # [9]
+    ]
+    for i in range(10):
+        actual = inputs[f"OUT_{i}"][0]
+        print(f"OUT_{i} = {actual}, esperado = {expected[i]}")
+        if actual != expected[i]:
+            raise Exception("cast_supreme_test falhou")

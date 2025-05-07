@@ -137,3 +137,6 @@ class Parser:
 
     def parse_bitwise_unary(self):
         return expressions.parse_bitwise_unary(self)
+
+    def parse_cast_block(self):
+        return expressions.parse_cast_block(self)

@@ -11,6 +11,8 @@ def generate_expr(self, expr):
         return _generate_binary(self, expr)
     elif isinstance(expr, sil_ast.BitwiseExpr):
         return self.generate_expr(expr.expr)
+    elif isinstance(expr, sil_ast.CastExpr):
+        return _generate_cast(self, expr)
 
     else:
         raise Exception(f"Unsupported expression type: {type(expr)}")
@@ -134,3 +136,33 @@ def _generate_binary(self, expr):
 
     result.append(f"{result_id} = {instr} {result_type} {left_id} {right_id}")
     return result, result_id, 'bool' if expr.op in comparison_ops else left_type
+
+def _generate_cast(self, expr):
+    result = []
+    code, value_id, value_type = self.generate_expr(expr.expr)
+    result.extend(code)
+
+    target_type = expr.target_type
+    target_type_id = self.type_ids[target_type]
+
+    if value_type == target_type:
+        return result, value_id, value_type
+
+    result_id = self.new_id()
+
+    # Determinar instrução de cast
+    if value_type == 'uint' and target_type == 'float':
+        op = 'OpConvertUToF'
+    elif value_type == 'float' and target_type == 'uint':
+        op = 'OpConvertFToU'
+    elif value_type == 'float' and target_type == 'int':
+        op = 'OpConvertFToU'  # Falso, mas necessário no Kernel mode
+    elif value_type == 'int' and target_type == 'float':
+        op = 'OpConvertUToF'  # Falso, mas necessário no Kernel mode
+    elif value_type in ['int', 'uint'] and target_type in ['int', 'uint']:
+        op = 'OpBitcast'
+    else:
+        raise Exception(f"Unsupported cast from {value_type} to {target_type}")
+
+    result.append(f"{result_id} = {op} {target_type_id} {value_id}")
+    return result, result_id, target_type

@@ -116,3 +116,8 @@ class CpuBlock:
 class BitwiseExpr:
     def __init__(self, expr):
         self.expr = expr  # Pode ser uma árvore de operações bitwise
+
+class CastExpr:
+    def __init__(self, expr, target_type):
+        self.expr = expr
+        self.target_type = target_type
