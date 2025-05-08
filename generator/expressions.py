@@ -1,5 +1,6 @@
 import sil_ast
 
+
 def generate_expr(self, expr):
     if isinstance(expr, sil_ast.Literal):
         return _generate_literal(self, expr)
@@ -13,9 +14,9 @@ def generate_expr(self, expr):
         return self.generate_expr(expr.expr)
     elif isinstance(expr, sil_ast.CastExpr):
         return _generate_cast(self, expr)
-
     else:
         raise Exception(f"Unsupported expression type: {type(expr)}")
+
 
 def _generate_literal(self, expr):
     result = []
@@ -27,9 +28,36 @@ def _generate_literal(self, expr):
     else:
         raise Exception(f"Unsupported literal type: {type(expr.value)}")
 
+
 def _generate_ident(self, expr):
     result = []
-    if expr.name in self.var_ids:
+
+    # First check if it's a constant
+    if expr.name in self.constants:
+        const_id = self.constants[expr.name]
+
+        # If the constant is not initialized yet, check if it's a variable
+        if const_id is None:
+            # Try to handle it as a variable reference if possible
+            if expr.name in self.var_ids:
+                var_ptr, var_type = self.var_ids[expr.name]
+                result_id = self.new_id()
+                result.append(f"{result_id} = OpLoad {self.type_ids[var_type]} {var_ptr}")
+
+                # Store this as the constant value now
+                self.constants[expr.name] = result_id
+                self.constant_types[expr.name] = var_type
+
+                return result, result_id, var_type
+            else:
+                raise Exception(f"Constant used before being fully initialized: {expr.name}")
+
+        # Get the constant type
+        const_type = self.constant_types.get(expr.name, 'uint')
+
+        return result, const_id, const_type
+
+    elif expr.name in self.var_ids:
         var_ptr, var_type = self.var_ids[expr.name]
         if var_type.startswith('ptr_'):
             return result, var_ptr, var_type
@@ -49,6 +77,7 @@ def _generate_ident(self, expr):
 
     else:
         raise Exception(f"Unknown identifier: {expr.name}")
+
 
 def _generate_unary(self, expr):
     result = []
@@ -82,6 +111,7 @@ def _generate_unary(self, expr):
 
     else:
         raise Exception(f"Unsupported unary operator: {expr.op}")
+
 
 def _generate_binary(self, expr):
     result = []
@@ -132,10 +162,12 @@ def _generate_binary(self, expr):
         instr = op_map_int.get(expr.op)
         if not instr:
             raise Exception(f"Unsupported int binary operator: {expr.op}")
-        result_type = self.type_ids['bool'] if expr.op in comparison_ops or expr.op in ['&&', '||'] else self.type_ids['uint']
+        result_type = self.type_ids['bool'] if expr.op in comparison_ops or expr.op in ['&&', '||'] else self.type_ids[
+            'uint']
 
     result.append(f"{result_id} = {instr} {result_type} {left_id} {right_id}")
     return result, result_id, 'bool' if expr.op in comparison_ops else left_type
+
 
 def _generate_cast(self, expr):
     result = []

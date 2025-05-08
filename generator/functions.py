@@ -51,23 +51,46 @@ def generate_kernel(self, node):
     label = self.new_id()
     result.append(f"{label} = OpLabel")
 
+    # Process all declarations first
     var_decls = []
+    const_decls = []
     other_stmts = []
 
     for stmt in node.body:
         if isinstance(stmt, sil_ast.VarDecl):
             var_decls.append(stmt)
+        elif isinstance(stmt, sil_ast.ConstDecl):
+            const_decls.append(stmt)
         else:
             other_stmts.append(stmt)
 
+    # 1. First process all constant declarations (without initialization)
+    for const in const_decls:
+        if isinstance(const.value, sil_ast.Literal):
+            const_code = self.generate_stmt(const)
+            if const_code:  # Only add non-empty code
+                result.extend(const_code)
+
+    # 2. Then process variable declarations
     for var in var_decls:
         result.extend(self.generate_var_only(var))
 
+    # 3. Initialize variables
     for var in var_decls:
         if var.value:
             assign = sil_ast.Assign(name=var.name, value=var.value)
             result.extend(self.generate_stmt(assign))
 
+    # 4. Then initialize constants that reference variables
+    for const in const_decls:
+        if not isinstance(const.value, sil_ast.Literal):
+            # Create a virtual assignment to handle the initialization
+            assign = sil_ast.Assign(name=const.name, value=const.value)
+            assign_code = self.generate_stmt(assign)
+            if assign_code:
+                result.extend(assign_code)
+
+    # 5. Now process all other statements
     for stmt in other_stmts:
         stmt_code = self.generate_stmt(stmt)
         if stmt_code is None:

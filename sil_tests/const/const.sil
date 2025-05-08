@@ -1,0 +1,15 @@
+kernel test_constants(soma: uint) {
+    const a: uint = 12;
+    const b: uint = 18;
+    soma = a + b;
+
+}
+
+@cpu
+import numpy as np, pyopencl as cl
+buf = np.zeros(1, dtype=np.uint32)
+out = rt.create_buffer(buf, cl.mem_flags.READ_WRITE)
+rt.run_kernel("test_constants", 1, {"out": out})
+result = rt.read_buffer(out, np.uint32, (1,))[0]
+print("Resultado:", result)
+assert result == 30, "Falha: constante soma incorreta"

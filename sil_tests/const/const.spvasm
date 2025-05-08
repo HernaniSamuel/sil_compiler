@@ -1,0 +1,29 @@
+; SPIR-V
+; Version: 1.0
+OpCapability Kernel
+OpMemoryModel Logical OpenCL
+OpEntryPoint Kernel %13 "test_constants"
+%1 = OpTypeVoid
+%2 = OpTypeBool
+%3 = OpTypeInt 32 0
+%4 = OpTypeFloat 32
+%5 = OpTypePointer CrossWorkgroup %3
+%6 = OpTypePointer CrossWorkgroup %3
+%7 = OpTypePointer CrossWorkgroup %4
+%8 = OpTypePointer CrossWorkgroup %2
+%9 = OpTypePointer Function %3
+%10 = OpTypePointer Function %3
+%11 = OpTypePointer Function %4
+%12 = OpTypePointer Function %2
+%14 = OpTypeFunction %1 %6
+%15 = OpConstant %3 12
+%16 = OpConstant %3 18
+%13 = OpFunction %1 None %14
+%17 = OpFunctionParameter %6
+%18 = OpLabel
+OpBranch %20
+%20 = OpLabel
+%19 = OpIAdd %3 %15 %16
+OpStore %17 %19
+OpReturn
+OpFunctionEnd

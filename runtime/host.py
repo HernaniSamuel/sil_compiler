@@ -34,3 +34,15 @@ class HostRuntime:
         cl.enqueue_copy(self.queue, output, buf)
         self.queue.finish()
         return output
+
+    def run_scalar(self, kernel_name: str, *scalar_args):
+        """
+        Chamada rápida para kernels sem buffers:
+            rt.run_scalar("nome_kernel", arg0, arg1, ...)
+        """
+        kernel = getattr(self.program, kernel_name)
+        if scalar_args:
+            kernel.set_args(*scalar_args)
+        # Executa uma única work‑item
+        cl.enqueue_nd_range_kernel(self.queue, kernel, (1,), None)
+        self.queue.finish()
