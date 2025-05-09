@@ -90,8 +90,22 @@ def parse_statement(self):
         return self.parse_cpu_block()
     else:
         # Verifica se é um identificador de variável antes de tentar parse_assign
-        if self._is_identifier(tok) and self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1] == "=":
-            return self.parse_assign()
+        # Tentar identificar atribuições do tipo x = ... ou *x = ...
+        if self.peek() == "*" or self._is_identifier(self.peek()):
+            start_pos = self.pos
+            try:
+                lhs = self.parse_expression()
+                if self.peek() == "=":
+                    self.expect("=")
+                    rhs = self.parse_expression()
+                    self.expect(";")
+                    return sil_ast.Assign(lhs, rhs)
+                else:
+                    # Reverter se não for uma atribuição
+                    self.pos = start_pos
+            except:
+                self.pos = start_pos
+
         else:
             raise Exception(f"Token inesperado: '{tok}' na posição {self.pos}")
 

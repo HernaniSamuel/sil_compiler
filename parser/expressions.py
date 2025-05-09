@@ -47,6 +47,15 @@ def parse_unary(self):
         self.next()
         operand = self.parse_unary()
         return sil_ast.UnaryOp('~', operand)
+    elif tok == '*':
+        self.next()
+        operand = self.parse_unary()
+        return sil_ast.Dereference(operand)
+    elif tok == '&':
+        self.next()
+        operand = self.parse_unary()
+        return sil_ast.AddressOf(operand)
+
     else:
         return self.parse_primary()
 

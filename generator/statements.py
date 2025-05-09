@@ -3,13 +3,21 @@ import sil_ast
 
 def generate_var_only(self, stmt):
     result = []
-    ptr_type = self.type_ids.get('ptr_func_' + stmt.var_type)
+
+    # Corrigir caso já seja 'ptr_uint' para evitar 'ptr_func_ptr_uint'
+    base_type = stmt.var_type
+    if base_type.startswith("ptr_"):
+        base_type = base_type[len("ptr_"):]
+
+    ptr_type = self.type_ids.get('ptr_func_' + base_type)
     if not ptr_type:
         raise Exception(f"Unknown pointer type for {stmt.var_type}")
+
     var_id = self.new_id()
     result.append(f"{var_id} = OpVariable {ptr_type} Function")
     self.var_ids[stmt.name] = (var_id, stmt.var_type)
     return result
+
 
 
 def generate_stmt(self, stmt):
@@ -42,29 +50,39 @@ def _generate_return(self, stmt):
 def _generate_assign(self, stmt):
     result = []
 
-    # Check if we're assigning to a const that was declared previously
-    if stmt.name in self.constants and self.constants[stmt.name] is None:
-        # This is a constant that was declared but not initialized yet
-        value_code, value_id, value_type = self.generate_expr(stmt.value)
-        result.extend(value_code)
+    # Determine o alvo da atribuição: Ident ou Dereference
+    if isinstance(stmt.target, sil_ast.Ident):
+        # Atribuição a constante declarada mas não inicializada
+        if stmt.target.name in self.constants and self.constants[stmt.target.name] is None:
+            value_code, value_id, value_type = self.generate_expr(stmt.value)
+            result.extend(value_code)
+            self.constants[stmt.target.name] = value_id
+            self.constant_types[stmt.target.name] = value_type
+            return result
 
-        # Store the constant value ID
-        self.constants[stmt.name] = value_id
+        # Atribuição normal a variável ou parâmetro
+        target_ptr_info = self.var_ids.get(stmt.target.name) or self.param_ids.get(stmt.target.name)
+        if target_ptr_info is None:
+            raise Exception(f"Variable or parameter not found: {stmt.target.name}")
+        target_ptr, target_type = target_ptr_info
 
-        # And also store the constant value type
-        self.constant_types[stmt.name] = value_type
+    elif isinstance(stmt.target, sil_ast.Dereference):
+        code, target_ptr, target_type = self.generate_expr(stmt.target.expr)
+        result.extend(code)
 
-        return result
+        if not target_type.startswith("ptr_"):
+            raise Exception(f"Dereferencing non-pointer type: {target_type}")
 
-    # Regular variable assignment
-    target_ptr_info = self.var_ids.get(stmt.name) or self.param_ids.get(stmt.name)
-    if target_ptr_info is None:
-        raise Exception(f"Variable or parameter not found: {stmt.name}")
+        target_type = target_type[len("ptr_"):]  # extrai o tipo real
 
-    target_ptr, target_type = target_ptr_info
+    else:
+        raise Exception(f"Unsupported assignment target type: {type(stmt.target)}")
+
+    # Gerar valor da expressão do lado direito
     value_code, value_id, value_type = self.generate_expr(stmt.value)
     result.extend(value_code)
 
+    # Conversão de bool para uint se necessário
     if value_type == 'bool' and (target_type == 'ptr_uint' or target_type == 'uint'):
         conv_id = self.new_id()
         result.append(

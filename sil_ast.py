@@ -44,12 +44,11 @@ class Return:
         return f"Return(value={self.value})"
 
 class Assign:
-    def __init__(self, name, value):
-        self.name = name
+    def __init__(self, target, value):
+        self.target = target  # Ident ou Dereference
         self.value = value
-
     def __repr__(self):
-        return f"Assign(name={self.name}, value={self.value})"
+        return f"Assign(target={self.target}, value={self.value})"
 
 class If:
     def __init__(self, condition, then_body, else_body=None):
@@ -121,3 +120,15 @@ class CastExpr:
     def __init__(self, expr, target_type):
         self.expr = expr
         self.target_type = target_type
+
+class Dereference:
+    def __init__(self, expr):
+        self.expr = expr
+    def __repr__(self):
+        return f"Dereference({self.expr})"
+
+class AddressOf:
+    def __init__(self, expr):
+        self.expr = expr
+    def __repr__(self):
+        return f"AddressOf({self.expr})"

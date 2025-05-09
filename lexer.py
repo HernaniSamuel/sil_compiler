@@ -1,7 +1,7 @@
 def tokenize(source_code):
     tokens = []
     current = ''
-    specials = {'(', ')', '{', '}', ':', ',', ';', '=', '+', '-', '*', '/', '%', '!', '<', '>', '&', '|', '~'}
+    specials = {'(', ')', '{', '}', ':', ',', ';', '=', '+', '-', '*', '/', '%', '!', '<', '>', '&', '|', '~', '.'}
     multi_char_specials = {'->', '==', '!=', '<=', '>=', '&&', '||', '//', '>>', '<<'}
 
     i = 0
@@ -60,10 +60,21 @@ def tokenize(source_code):
             continue
         elif char in specials:
             if current:
+                # Detectar se current + char + próximo é um float (ex: 2 . 5)
+                if (
+                        char == '.' and
+                        current.isdigit() and
+                        i + 1 < len(source_code) and source_code[i + 1].isdigit()
+                ):
+                    current += char  # incluir o ponto como parte do número
+                    i += 1
+                    continue
+
                 tokens.append(current)
                 current = ''
             tokens.append(char)
             i += 1
+
         else:
             current += char
             i += 1

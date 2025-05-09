@@ -1,0 +1,15 @@
+kernel pointer_test_float(ptr_output: ptr_float) {
+    var x: float = 41.5;
+    *(&x) = *(&x) + 1.0;
+    *ptr_output = x;
+}
+
+@cpu
+import numpy as np
+out = np.zeros(1, dtype=np.float32)
+buf_out = gpu.create_buffer(out)
+
+gpu.run("pointer_test_float", buf_out)
+
+gpu.read_buffer(buf_out, np.float32, (1,))
+print("Resultado float:", out[0])

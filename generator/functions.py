@@ -78,7 +78,7 @@ def generate_kernel(self, node):
     # 3. Initialize variables
     for var in var_decls:
         if var.value:
-            assign = sil_ast.Assign(name=var.name, value=var.value)
+            assign = sil_ast.Assign(sil_ast.Ident(var.name), var.value)
             result.extend(self.generate_stmt(assign))
 
     # 4. Then initialize constants that reference variables

@@ -46,3 +46,9 @@ class HostRuntime:
         # Executa uma única work‑item
         cl.enqueue_nd_range_kernel(self.queue, kernel, (1,), None)
         self.queue.finish()
+
+    def run(self, kernel_name, *args):
+        kernel = getattr(self.program, kernel_name)
+        kernel.set_args(*args)
+        cl.enqueue_nd_range_kernel(self.queue, kernel, (1,), None)
+        self.queue.finish()

@@ -14,8 +14,28 @@ def generate_expr(self, expr):
         return self.generate_expr(expr.expr)
     elif isinstance(expr, sil_ast.CastExpr):
         return _generate_cast(self, expr)
+    elif isinstance(expr, sil_ast.Dereference):
+        return _generate_dereference(self, expr)
+    elif isinstance(expr, sil_ast.AddressOf):
+        return _generate_addressof(self, expr)
     else:
         raise Exception(f"Unsupported expression type: {type(expr)}")
+
+
+def _generate_addressof(self, expr):
+    if isinstance(expr.expr, sil_ast.Ident):
+        var_info = self.var_ids.get(expr.expr.name) or self.param_ids.get(expr.expr.name)
+        if var_info is None:
+            raise Exception(f"AddressOf aplicado a variável desconhecida: {expr.expr.name}")
+        var_id, var_type = var_info
+
+        if var_type.startswith("ptr_"):
+            raise Exception("SPIR-V Kernel não permite ponteiro de ponteiro")
+
+        ptr_type = f"ptr_{var_type}"
+        return [], var_id, ptr_type
+    else:
+        raise Exception("AddressOf só é permitido sobre identificadores simples")
 
 
 def _generate_literal(self, expr):
@@ -28,6 +48,18 @@ def _generate_literal(self, expr):
     else:
         raise Exception(f"Unsupported literal type: {type(expr.value)}")
 
+def _generate_dereference(self, expr):
+    result = []
+    code, ptr_id, ptr_type = self.generate_expr(expr.expr)
+    result.extend(code)
+
+    if not ptr_type.startswith("ptr_"):
+        raise Exception(f"Dereferencing non-pointer type: {ptr_type}")
+
+    val_type = ptr_type[len("ptr_"):]
+    result_id = self.new_id()
+    result.append(f"{result_id} = OpLoad {self.type_ids[val_type]} {ptr_id}")
+    return result, result_id, val_type
 
 def _generate_ident(self, expr):
     result = []

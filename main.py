@@ -122,6 +122,7 @@ def main():
             rt = HostRuntime()
             rt.load_spirv(spv_filename)  # carrega o SPIR-V correspondente
             globals()['rt'] = rt
+            globals()['gpu'] = rt
 
             for node in cpu_nodes:
                 exec(node.code, globals())
