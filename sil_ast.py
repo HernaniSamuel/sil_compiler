@@ -1,5 +1,3 @@
-# sil_ast.py
-
 class VarDecl:
     def __init__(self, name, var_type, value):
         self.name = name
@@ -114,7 +112,7 @@ class CpuBlock:
 
 class BitwiseExpr:
     def __init__(self, expr):
-        self.expr = expr  # Pode ser uma árvore de operações bitwise
+        self.expr = expr
 
 class CastExpr:
     def __init__(self, expr, target_type):

@@ -40,8 +40,6 @@ from __future__ import annotations
 
 import itertools
 import re
-import sys
-from pathlib import Path
 from typing import List, Tuple
 
 # ---------------------------------------------------------------------------
