@@ -31,8 +31,7 @@ This project includes a full compiler pipeline:
 kernel sum(out: uint) {
     var a: uint = 12;
     var b: uint = 18;
-    sum = a + b;
-
+    out = a + b;
 }
 
 @cpu
